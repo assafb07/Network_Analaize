@@ -1,0 +1,22 @@
+System
+Terminal
+Fixedsys
+Modern
+Roman
+Courier
+MS Sans Serif
+Arial
+Courier New
+Lucida Console
+MS Gothic
+Times New Roman
+Tahoma
+David
+Miriam
+Narkisim
+Rod
+Comic Sans MS
+Georgia
+Verdana
+Franklin Gothic Book
+Lucida Sans

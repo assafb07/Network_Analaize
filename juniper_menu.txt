@@ -1,0 +1,39 @@
+submenu01
+Show Configuration
+show configuration | display set | no-more
+show configuration interface | display set | no-more
+show configuration routing-instance | display set | no-more
+show configuration protocol bgp | display set | no-more
+#
+submenu02
+Show Bgp
+show bgp summary | no-more
+show bgp neighbor | no-more
+show bgp group | no-more
+#
+submenu03
+Show Security Alarms
+show security alarms
+#
+submenu04
+Show Dhcp
+show dhcp server binding | no-more
+show dhcp server statistics | no-more
+#
+submenu05
+Show Interfaces
+show interfaces terse | no-more
+show interfaces terse | match inet | no-more
+#
+submenu06
+Show Routes
+show route table inet.0 | no-more
+show route table inet.0 terse | no-more
+show configuration routing-options | display set | no-more
+#
+submenu07
+More
+show arp no-resolve | no-more
+show version | no-more
+show system uptime
+break

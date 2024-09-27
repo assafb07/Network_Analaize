@@ -1,0 +1,49 @@
+submenu01
+Show Run
+show run
+show run | sec interface
+show run | sec tunnel
+show run | sec bgp
+show run | sec eigrp
+show run | sec ospf
+show run | sec rip
+#
+submenu02
+Show Ip Route
+show ip route
+show ip route static
+show ip route bgp
+show ip route eigrp
+show ip route ospf
+show ip route rip
+#
+submenu03
+Show DHCP
+show dhcp server
+show dhcp lease
+#
+submenu04
+Show dmvpn
+show dmvpn
+show dmvpn | sec UP
+show dmvpn detail
+show dmvpn debug-condition
+#
+submenu05
+Show Ip Arp
+show ip arp
+#
+submenu07
+Show Dinamic Routes
+show ip bgp
+show ip eigrp
+show ip ospf
+show ip rip
+#
+submenu06
+More
+show clock
+show version
+show version | sec uptime
+show ip vrf
+terminal shell
