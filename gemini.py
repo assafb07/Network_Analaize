@@ -13,12 +13,12 @@ def ask_gemini(user_input):
     return response.text
 
 def chat_gemini(user_input):
-
+    model = os.getenv("gemini_model")
+    print(model)
     API_KEY = os.getenv("gemini_key")
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel(model)
     chat = model.start_chat(history=history_fresh)
-
     response = chat.send_message(user_input)
     history_fresh.append({"role": "user", "parts": user_input})
     history_fresh.append({"role": "model", "parts": response.text})
