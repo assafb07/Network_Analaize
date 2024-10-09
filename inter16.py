@@ -69,10 +69,15 @@ background_colors_list = ["deepskyblue", "darkslategray1", "darkseagreen1",
 host_detail_list = []
 host_list = []
 new_list = []
+cmd_history_list = []
+up_counter = 0
 counter = 0
 ana_counter = 0
 unable_counter = 0
 cterminal_couter = 0
+pulse = False
+complete_counter = 0
+match_list = []
 #item in hosts combox01
 item_chosen = ""
 b_width = 25
@@ -92,6 +97,11 @@ with open(file_name, "w") as file:
     file.write("")
 with open(srun_file, "w") as file:
     file.write("")
+
+with open("cisco_menu.txt", "r") as cisco_file:
+    cisco_list = cisco_file.readlines()
+with open("juniper_menu.txt", "r") as juniper_file:
+    juniper_list = juniper_file.readlines()
 
 def write_file(output):
     with open(file_name, "a") as file:
@@ -126,6 +136,7 @@ def show_ana(button):
 
 def analize_run():
     ana_butt_disable()
+    env.chenge_var("check_pings", "False")
     #checkbocks01 - Remember Me - for host details. if 'ON' go to function to add host
     if checkbutton01_var.get() == 1:
         remember_me()
@@ -148,12 +159,13 @@ def run_cmd():
     elif vendure == "Juniper":
         cmds = cmds_list_juniper
     ssh_succedd = False
+    ssh_succedd = False
     global ana_counter
     answers.insert(tk.END, f"{combo_box01.get()} - Collecting Data\n")
     try:
         ssh_client01 =paramiko.SSHClient()
         ssh_client01.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client01.connect(combo_box01.get() , port, entry02.get(), entry03.get())
+        ssh_client01.connect(combo_box01.get(), port, entry02.get(), entry03.get())
         channel = ssh_client01.invoke_shell()
         output = channel.recv(9999)
         if output.decode("ascii")[-1] == ">" and vendure == "Cisco":
@@ -163,7 +175,6 @@ def run_cmd():
             output =  channel.recv(9999)
             stop_key = re.search(r"Password", output.decode("ascii"))
             if stop_key:
-                print("Password Line")
                 pass_entry_win()
                 global en_pass
                 en_pass = None
@@ -185,15 +196,14 @@ def run_cmd():
             time.sleep(response_time + 2)
             if channel.recv_ready():
                 output = channel.recv(9999)
-                print(output.decode("ascii"))
             if ">" in output.decode("ascii"):
                 ssh_succedd = True
-                login_succedd = True
+
     except Exception as e:
         answers.insert("1.0", f"\n!!!!!!!!!!!!!!!!!!!\n{e}\n")
         ssh_succedd = False
 
-    if ssh_succedd and login_succedd:
+    if ssh_succedd or login_succedd:
         for cmd in cmds:
             ana_counter +=1
             #first 3 commands, I gave higher response_time. then go faster
@@ -217,6 +227,7 @@ def run_cmd():
         elif vendure == "Juniper":
             ana_juniper.run_it()
         ana_butt_enable()
+        env.chenge_var("check_pings", "True")
         ssh_client01.close()
     else:
         answers.insert(tk.END, "Can't analize")
@@ -241,10 +252,13 @@ def pass_entry_win():
 def check_ping():
     answers.delete("1.0", tk.END)
     host = combo_box01.get()
-    p = subprocess.Popen(["ping", host], stdout=subprocess.PIPE)
-    out = p.stdout.read().decode('ascii')
-    answers.delete("1.0", tk.END)
-    answers.insert(tk.END, out)
+    if host !="":
+        p = subprocess.Popen(["ping", host], stdout=subprocess.PIPE)
+        answers.insert(tk.END, "Wait...")
+        out = p.stdout.read().decode('ascii')
+        answers.delete("1.0", tk.END)
+        answers.insert(tk.END, out)
+
 
 def check_ping_tread():
     if combo_box01.get() !="":
@@ -253,6 +267,9 @@ def check_ping_tread():
 
 def terminal(terminal_text):
     remember_me()
+    global pulse
+    pulse = False
+    ios = combo_box02.get()
     port = os.getenv("port")
     terminal_fsize = int(os.getenv("font_size"))
     terminal_font = os.getenv("font")
@@ -265,9 +282,9 @@ def terminal(terminal_text):
             channel = ssh_client02.invoke_shell()
             output05 = channel.recv(9999)
             #disable --More-- function - Cisco
-            if combo_box02.get() == "Cisco":
+            if ios == "Cisco":
                 channel.send("terminal length 0\nterminal shell\n")
-            elif combo_box02.get() == "Juniper":
+            elif ios == "Juniper":
                 channel.send("\n\ncli\n")
             top = Toplevel(window)
             size_position = os.getenv("top_size_position")
@@ -290,7 +307,7 @@ def terminal(terminal_text):
                         counter01 = 1
                         if to_find01 in item:
                             found_line = counter
-                            globals()[item.rstrip()] = Menu(filemenu)
+                            globals()[item.rstrip()] = tk.Menu(filemenu)
                             filemenu.add_cascade(label=cisco_menu[found_line+1].rstrip(), menu=globals()[item.rstrip()], underline=0)
                             for cmd in cisco_menu[found_line+2:]:
                                 if to_find02 in cmd:
@@ -302,7 +319,7 @@ def terminal(terminal_text):
                                     globals()[item.rstrip()].add_command(label=cmd.rstrip(), command = lambda x=cmd: pop_cmd(True, answers05, entry05, x, channel))
                                     counter01 += 1
 
-            elif combo_box02.get() == "Juniper":
+            elif ios == "Juniper":
                 to_find01 = "submenu"
                 to_find02 = "#"
                 counter = -1
@@ -313,7 +330,7 @@ def terminal(terminal_text):
                         counter01 = 1
                         if to_find01 in item:
                             found_line = counter
-                            globals()[item.rstrip()] = Menu(filemenu)
+                            globals()[item.rstrip()] = tk.Menu(filemenu)
                             filemenu.add_cascade(label=juniper_menu[found_line+1].rstrip(), menu=globals()[item.rstrip()], underline=0)
                             for cmd in juniper_menu[found_line+2:]:
                                 if to_find02 in cmd:
@@ -326,30 +343,93 @@ def terminal(terminal_text):
                                     counter01 += 1
 
             sub_menu01 = Menu(settings_menu, tearoff=0)
-            settings_menu.add_cascade(label="Choose Terminal Font", menu=sub_menu01, underline=0)
+            settings_menu.add_cascade(label="Terminal Font", menu=sub_menu01, underline=0)
             with open("fonts.txt", "r") as file:
                 fonts_list = file.readlines()
             for item in fonts_list:
+                if item.strip() == terminal_font.strip():
+                        sub_menu01.add_command(label=f"{item} - Selected", font=(main_font, main_fsize+1, "bold"), command = lambda x = item.rstrip() : change_font(x, top, ssh_client02, answers05))
+                        continue
                 sub_menu01.add_command(label=item.rstrip(), command = lambda x = item.rstrip() : change_font(x, top, ssh_client02, answers05))
 
             sub_menu02 = Menu(settings_menu, tearoff=0)
-            settings_menu.add_cascade(label="Choose Font Size", menu=sub_menu02, underline=0)
+            settings_menu.add_cascade(label="Font Size", menu=sub_menu02, underline=0)
             for item in range(7,15):
+                if item == int(terminal_fsize):
+                    sub_menu02.add_command(label=f"{item} - Selected", font=(main_font, main_fsize+1, "bold"), command = lambda x = item : change_size(x, top, ssh_client02, answers05))
+                    continue
                 sub_menu02.add_command(label=item, command = lambda x = item : change_size(x, top, ssh_client02, answers05))
+
             settings_menu.add_command(label = "Load Default Settings", command = lambda: load_default_settings(top, ssh_client02, answers05))
             top.config(menu=menubar)
-            answers05 = boottk.Text(top, wrap=WORD, font=(terminal_font, terminal_fsize))
+            answers05 = Text(top, wrap=WORD, font=(terminal_font, terminal_fsize))
             answers05.pack(fill="both", expand=True)
             answers05.insert("1.0", f"{output05.decode("ascii")}{terminal_text}")
-            answers05.see(boottk.END)
-            entry05 = boottk.Entry(top, justify='left', width=62)
+            answers05.see(END)
+
+            entry_text = tk.StringVar()
+            entry05 = tk.Entry(top, justify='left', width=62, textvariable=entry_text)
             entry05.pack(fill="both", expand=False)
+
             entry05.bind('<Return>', lambda event: pop_cmd(None, answers05, entry05, entry05.get(), channel))
+            entry05.bind('<Up>', lambda event: cmd_history(entry05, entry_text, 1))
+            entry05.bind('<Down>', lambda event: cmd_history(entry05, entry_text,-1))
+            entry05.bind('<Right>', lambda event: cmd_complete(entry05, entry_text, ios, 1))
+            entry05.bind('<Left>', lambda event: cmd_complete(entry05, entry_text, ios, -1))
         else:
-            answers.insert(tk.END, "Enter IP/Username/Password\n")
+            answers.insert(END, "Enter IP/Username/Password\n")
 
     except Exception as e:
         answers.insert("1.0", f"\n!!!!!!!!!!!!!!!!!!!\n{e}\n")
+
+def cmd_history(entry05, entry_text, up_down):
+    global cmd_history_list
+    global up_counter
+    up_counter = up_counter + up_down
+    if up_counter > len(cmd_history_list) or up_counter < (-1)*(len(cmd_history_list)):
+        up_counter = 0
+    elif up_counter < -1:
+        up_counter = len(cmd_history_list)-1
+    if len(cmd_history_list) > 0:
+        entry_text.set(cmd_history_list[-up_counter])
+
+def cmd_complete(entry05, entry_text, ios, plus_minus_counter):
+    global cisco_list
+    global juniper_list
+    global pulse
+    global complete_counter
+    global match_list
+    entry_to_complete = entry05.get()
+    if pulse is False and entry_to_complete !="":
+        if ios == "Cisco":
+            for item in cisco_list:
+                find_complete = re.search(entry_to_complete, item)
+                if find_complete:
+                    print("search")
+                    #create a list of matches to the entry
+                    match_list.append(item)
+                #pulse - True means next right arrow will show results and not search matches
+                    pulse = True
+        if ios == "Juniper":
+            for item in juniper_list:
+                find_complete = re.search(entry_to_complete, item)
+                if find_complete:
+                    print("search")
+                    #create a list of matches to the entry
+                    match_list.append(item)
+                #pulse - True means next right arrow will show results and not search matches
+                    pulse = True
+    if pulse:
+        print("complete options")
+        entry_text.set(match_list[complete_counter])
+        if len(match_list)-1 > complete_counter:
+            complete_counter +=plus_minus_counter
+            print(len(match_list), complete_counter)
+        if complete_counter == len(match_list)-1:
+            #when complete option reach end, reset counter
+            complete_counter = 0
+        if complete_counter == (-1)*(len(match_list)-1):
+            complete_counter = 0
 
 def on_terminal_close(top, ssh_client02, answers05, default_position=False):
     size_position = top.winfo_geometry()
@@ -411,22 +491,36 @@ def on_resize(event, top):
     os.environ["top_size_position"] = size_position
 
 def pop_cmd(event, answers05, entry05, entry_cmd, channel):
+    global cmd_history_list
+    global up_counter
+    global pulse
+    global complete_counter
+    global match_list
+    match_list = []
+    pulse = False
+    up_counter = 0
+    complete_counter = 0
+
+    if entry_cmd !="" and entry_cmd not in cmd_history_list:
+        cmd_history_list.append(entry_cmd)
+    response_time = float(os.getenv("response_time"))
     #sent command to ssh host using shell
-    print(entry_cmd)
-    if entry_cmd.rstrip() == "break":
+    if entry_cmd == "break":
         channel.send("\x03")
     else:
         channel.send(f"{entry_cmd}\n")
     #delay 'response_time' seconds, if network slow, can be increased
-    if "show run" in entry_cmd:
-        response_time01 = 1
-    else:
-        response_time01 = 0.2
-    time.sleep(response_time01)
+    find_srun = re.search(r'show run', entry_cmd)
+    if find_srun:
+        response_time = response_time +1
+    find_ping = re.search(r'ping', entry_cmd)
+    if find_ping:
+        response_time = response_time +3
+    time.sleep(response_time)
     if channel.recv_ready():
-        #get host respond (binary text)
         output05 = channel.recv(5000)
         answers05.insert(boottk.END, f"{output05.decode("ascii")}\n")
+        time.sleep(response_time)
         answers05.see(boottk.END)
         entry05.delete(0, 'end')
     else:
@@ -455,82 +549,91 @@ def ana_butt_disable():
     button19.configure(state="disable")
 
 def check_pings():
-    time.sleep(25)
-    fsize = os.getenv("font_size")
-    port = os.getenv("port")
-    #open ssh socket
-    ssh_client03 =paramiko.SSHClient()
-    ssh_client03.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh_client03.connect(combo_box01.get() , port, entry02.get(), entry03.get())
-    #create shell
-    channel = ssh_client03.invoke_shell()
-    time.sleep(1)
-    pings_top = Toplevel(window)
-    pings_top.title(f"{combo_box01.get()} - Ping's Window")
-    answers08 = boottk.Text(pings_top, width=75,  height=25, font=(ffont, fsize))
-    answers08.grid(pady=20, padx=20)
-    answers08.insert(boottk.END, "Ping to IP's found in arp table\n")
-    if combo_box02.get() == "Cisco":
-        for item in ips_arp_file():
-        #sent command to ssh host using shell
-            channel.send(f"{item}\n")
-            time.sleep(12)
-            if channel.recv_ready():
-                output07 = channel.recv(5000)
-                find_ms = re.search(r"round-trip min/avg/max = \d+\/\d+\/\d+ ms", output07.decode("ascii"))
-                if find_ms:
-                    print(find_ms.group())
-                find_rate = re.search(r"Success rate is (\b[0-9]?[0-9]\b|100)", output07.decode("ascii"))
-                rate = int(find_rate.group().split()[-1])
-                if find_rate and find_ms:
-                    if rate == 100:
-                        bk_color = "chartreuse1"
-                        answers08.tag_config(bk_color, background="chartreuse1", foreground="black")
-                    elif rate < 100 and rate >= 50:
-                        bk_color = "gray80"
-                        answers08.tag_config(bk_color, background="gray80", foreground="black")
-                    elif rate == 25:
-                        bk_color = "darkorange"
-                        answers08.tag_config(bk_color, background="darkorange", foreground="black")
-                    elif rate == 0:
-                        bk_color = "firebrick1"
-                        answers08.tag_config(bk_color, background="firebrick1", foreground="black")
-                    answers08.insert(boottk.END, f"{item} - {find_rate.group()} - {find_ms.group()}\n", bk_color)
+    time.sleep(5)
+    counter = 0
+    check_pings_now = os.getenv("check_pings")
+    while check_pings_now == "False":
+        check_pings_now = os.getenv("check_pings")
+        time.sleep(1)
+        counter = counter +1
+    if check_pings_now:
+        fsize = os.getenv("font_size")
+        port = os.getenv("port")
+        #open ssh socket
+        ssh_client03 =paramiko.SSHClient()
+        ssh_client03.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh_client03.connect(combo_box01.get() , port, entry02.get(), entry03.get())
+        #create shell
+        channel = ssh_client03.invoke_shell()
+        time.sleep(1)
+        pings_top = Toplevel(window)
+        pings_top.title(f"{combo_box01.get()} - Ping's Window")
+        answers08 = boottk.Text(pings_top, width=75,  height=25, font=(ffont, fsize))
+        answers08.grid(pady=20, padx=20)
+        answers08.insert(boottk.END, "Ping to IP's found in arp table\n")
+        if combo_box02.get() == "Cisco":
+            for item in ips_arp_file():
+            #sent command to ssh host using shell
+                channel.send(f"{item}\n")
+                time.sleep(12)
+                if channel.recv_ready():
+                    output07 = channel.recv(5000)
+                    find_ms = re.search(r"round-trip min/avg/max = \d+\/\d+\/\d+ ms", output07.decode("ascii"))
+                    find_rate = re.search(r"Success rate is (\b[0-9]?[0-9]\b|100)", output07.decode("ascii"))
+                    rate = int(find_rate.group().split()[-1])
+                    if find_rate and find_ms:
+                        if rate == 100:
+                            bk_color = "chartreuse1"
+                            answers08.tag_config(bk_color, background="chartreuse1", foreground="black")
+                        elif rate < 100 and rate >= 50:
+                            bk_color = "gray80"
+                            answers08.tag_config(bk_color, background="gray80", foreground="black")
+                        elif rate == 25:
+                            bk_color = "darkorange"
+                            answers08.tag_config(bk_color, background="darkorange", foreground="black")
+                        elif rate == 0:
+                            bk_color = "firebrick1"
+                            answers08.tag_config(bk_color, background="firebrick1", foreground="black")
+                        answers08.insert(boottk.END, f"{item} - {find_rate.group()} - {find_ms.group()}\n", bk_color)
+                    else:
+                        continue
                 else:
                     continue
-            else:
-                continue
-    elif combo_box02.get() == "Juniper":
-        channel.send("cli\n")
-        time.sleep(response_time)
-        for item in ips_arp_file():
-            #sent command to ssh host using shell
-            channel.send(f"{item}\n")
-            time.sleep(6)
-            channel.send("\x03")
+        elif combo_box02.get() == "Juniper":
+            channel.send("cli\n")
             time.sleep(response_time)
-            channel.send("\x03")
-            if channel.recv_ready():
-                output08 = channel.recv(5000)
-                find_text = "statistics"
-                output_list = output08.decode("ascii").split()
-                if find_text in output_list:
-                    find_statistic = output_list.index("statistics")
-                    text = ""
-                    for output_item in output_list[find_statistic-2:find_statistic+11]:
-                        text += f"{output_item} "
-                    if output_list[find_statistic+8] == "0%":
-                        bk_color = "chartreuse1"
-                        answers08.tag_config(bk_color, background="chartreuse1", foreground="black")
-                    else:
-                        bk_color = "darkorange"
-                        answers08.tag_config(bk_color, background="darkorange", foreground="black")
+            for item in ips_arp_file():
+                #sent command to ssh host using shell
+                channel.send(f"{item}\n")
+                time.sleep(6)
+                channel.send("\x03")
+                time.sleep(response_time)
+                channel.send("\x03")
+                if channel.recv_ready():
+                    output08 = channel.recv(5000)
+                    find_text = "statistics"
+                    output = output08.decode("ascii")
+                    output_list = output.split()
+                    if find_text in output_list:
+                        find_statistic = output_list.index("statistics")
+                        text = ""
+                        for output_item in output_list[find_statistic-2:find_statistic+11]:
+                            text += f"{output_item} "
+                        if output_list[find_statistic+8] == "0%":
+                            bk_color = "chartreuse1"
+                            answers08.tag_config(bk_color, background="chartreuse1", foreground="black")
+                        else:
+                            bk_color = "darkorange"
+                            answers08.tag_config(bk_color, background="darkorange", foreground="black")
+                    for line in output:
+                        find_rate = re.search(r'round-trip min/avg/max/stddev = ([0-9]+\.[0-9]+)/([0-9]+\.[0-9]+)/([0-9]+\.[0-9]+)/([0-9]+\.[0-9]+) ms', output)
+                    if find_rate:
+                        text += f"\n{find_rate.group()}"
+
                     answers08.insert(boottk.END, f"{text}\n", bk_color)
                     answers08.see(tk.END)
-
-
-    answers08.insert(boottk.END, "Done")
-    ssh_client03.close()
+        answers08.insert(boottk.END, "Done")
+        ssh_client03.close()
 
 def ips_arp_file():
     ping_cmd_list = []
@@ -715,7 +818,7 @@ def tk_answer(output):
     try:
         answers.insert(tk.END, f"{output.decode(encoding='utf-8')}")
     except:
-        print("")
+        pass
 
 def font_size_main(font_size):
     global answers
@@ -767,7 +870,7 @@ def ask_gemini(answers09, entry09):
         answer09_ai = gem.chat_gemini(user_input)
         random_color = random.choice(background_colors_list)
         answers09.tag_config(random_color, background=random_color, foreground="black")
-        answers09.insert(tk.END, f"{answer09_ai}\n", random_color)
+        answers09.insert(tk.END, f"Me:{user_input}\nGemini: {answer09_ai}\n", random_color)
         answers09.see(tk.END)
     else:
         answers09.insert(tk.END, "Ask me anything :-)")
@@ -777,45 +880,59 @@ def ask_gemini_tread(answers09, entry09):
     thread03.start()
 
 def gemini_window(gemini_text):
+    gfont = os.getenv("gemini_font")
+    gfont_size = os.getenv("gemini_font_size")
     gemini_top = tk.Toplevel(window)
     gemini_top.title(f"Ask Gemini")
+
+    answers09 = boottk.Text(gemini_top, wrap=WORD, width=65,  height=35-int(gfont_size)*2, font=(gfont, gfont_size))
+    answers09.pack(fill="both", expand=True)
+    if gemini_text == "":
+        answers09.insert(tk.END, f"{os.getenv("gemini_model")}\nHello, How can I help?\n")
+    else:
+        answers09.insert("1.0", gemini_text+f"now using {os.getenv("gemini_model")}\n")
+
+    entry09 = boottk.Entry(gemini_top, justify='left', font=(ffont, fsize))
+    entry09.pack(fill="both")
+    entry09.bind('<Return>', lambda x: ask_gemini_tread(answers09, entry09))
+
     size_position = os.getenv("gemini_size_position")
     gemini_top.geometry(size_position)
     gemini_top.protocol("WM_DELETE_WINDOW", (lambda : on_gemini_close(gemini_top, answers09)))
-    gfont = os.getenv("gemini_font")
-    gfont_size = os.getenv("gemini_font_size")
+
 
     menubar = tk.Menu(gemini_top)
     gemini_top.config(menu = menubar)
     settings_menu = tk.Menu(menubar)
     font_menu = tk.Menu(settings_menu, tearoff=0)
     size_menu = tk.Menu(settings_menu, tearoff=0)
-
+    model_menu = tk.Menu(settings_menu, tearoff=0)
     menubar.add_cascade(label="Settings", menu=settings_menu)
     settings_menu.add_cascade(label="Font", menu=font_menu, underline=0)
     with open("fonts.txt", "r") as file:
         fonts_list = file.readlines()
+
+    var_gfont = tk.StringVar()
     for item in fonts_list:
-        font_menu.add_command(label=item.rstrip(), command = lambda x = item.rstrip() : change_gfont(x, gemini_top, answers09))
+        if item.strip() == gfont:
+            font_menu.add_radiobutton(label=f"{item.rstrip()} - Selected", value=item, variable=var_gfont, command = lambda x = item.rstrip() : change_gfont(x, gemini_top, answers09), font=(main_font, main_fsize+1, "bold"))
+            continue
+        font_menu.add_radiobutton(label=item.rstrip(), value=item, variable=var_gfont, command = lambda x = item.rstrip() : change_gfont(x, gemini_top, answers09))
 
     var_gfsize = tk.IntVar()
     settings_menu.add_cascade(label="Font Size", menu=size_menu, underline=0)
     for item in range(7,15):
+        if item == int(gfont_size):
+            size_menu.add_radiobutton(label=f"{str(item)} - Selected", value=item, variable=var_gfsize, command=lambda x=item:change_gsize(x, gemini_top, answers09), font=(main_font, main_fsize+1, "bold"))
+            continue
         size_menu.add_radiobutton(label=str(item), value=item, variable=var_gfsize, command=lambda x=item:change_gsize(x, gemini_top, answers09), font=(main_font, main_fsize))
-#    var_gfsize.set(14)
 
     settings_menu.add_command(label = "Load Default Settings", command = lambda: load_default_settings_gemini(gemini_top, answers09))
 
-    answers09 = boottk.Text(gemini_top, wrap=WORD, width=65,  height=25, font=(gfont, gfont_size))
-    answers09.pack(fill="both", expand=True)
-    if gemini_text == "":
-        answers09.insert(tk.END, "Hello, How can I help?\n:-)")
-    else:
-        answers09.insert("1.0", gemini_text)
-
-    entry09 = boottk.Entry(gemini_top, justify='left', font=(ffont, fsize))
-    entry09.pack(fill="both", expand=False)
-    entry09.bind('<Return>', lambda x: ask_gemini_tread(answers09, entry09))
+    menubar.add_cascade(label="Gemini Model", menu=model_menu, underline=0)
+    model_menu.add_command(label = "gemini-1.5-flash", command = lambda: gemini_model(gemini_top, answers09,"gemini-1.5-flash"))
+    model_menu.add_command(label = "gemini-1.5-pro", command = lambda: gemini_model(gemini_top, answers09, "gemini-1.5-pro"))
+    model_menu.add_command(label = "gemini-1.0-pro", command = lambda: gemini_model(gemini_top, answers09, "gemini-1.0-pro"))
 
 def on_gemini_close(gemini_top, answers09, default_position=False):
     size_position = gemini_top.winfo_geometry()
@@ -862,6 +979,11 @@ def load_default_settings_gemini(gemini_top, answers09):
     env.chenge_var("gemini_size_position", default_size_position)
 
     reload_gemini(gemini_top, answers09, True)
+
+def gemini_model(gemini_top, answers09, model):
+    os.environ["gemini_model"] = model
+    env.chenge_var("gemini_model", model)
+    reload_gemini(gemini_top, answers09, model)
 
 def chenge_response():
     radio_var = int(optionVar_radio.get())
