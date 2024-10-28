@@ -12,7 +12,8 @@ arp_file = "arp.txt"
 dinamic_file = "dinamic.txt"
 interface_conf_file = "interface_conf_file.txt"
 vrf_file = "vrf.txt"
-afiles_list = [analisys_file, version_file, interfaces_file, routes_file, arp_file, dinamic_file, interface_conf_file, vrf_file]
+summary_file = "summary.txt"
+afiles_list = [analisys_file, version_file, interfaces_file, routes_file, arp_file, dinamic_file, interface_conf_file, vrf_file, summary_file]
 sinterface = "show ip inter br"
 sroute_static = "show ip route stat"
 sroute_bgp = "show ip route bgp"
@@ -295,6 +296,9 @@ def ana_vrf(lines):
         elif line != "\n":
             to_print += line
     to_print_fun(to_print, vrf_file)
+
+def summary(lines):
+    pass
 
 def mac_lookup(mac_address):
     try:
